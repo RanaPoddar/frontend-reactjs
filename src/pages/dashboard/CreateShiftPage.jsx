@@ -19,24 +19,14 @@ const CreateShiftPage = () => {
     trainNumber: '',
     trainName: '',
     locomotiveNo: '',
-    dutyType: 'SP', 
     signOnStation: '',
     section: '',
     
-    // Separate date and time fields for each event
-    trainArrivalDate: dayjs().format('YYYY-MM-DD'),
-    trainArrivalTime: '',
-    
-    signOnDate: dayjs().format('YYYY-MM-DD'),
-    signOnTime: '',
-    
-    timeOfTODate: dayjs().format('YYYY-MM-DD'),
+    // Combined datetime fields
+    trainArrivalDateTime: '',
+    signOnDateTime: '',
     timeOfTO: '',
-    
-    departureDate: dayjs().format('YYYY-MM-DD'),
-    departureTime: '',
-    
-    lobbySignOn: false,
+    departureDateTime: '',
     
     // Loco Pilot Information
     locoPilotName: '',
@@ -59,27 +49,48 @@ const CreateShiftPage = () => {
     });
   };
 
+  // Phone number validation helper
+  const isValidPhone = (phone) => {
+    if (!phone) return true; // Phone is optional
+    // Accept 10 digits or +91 followed by 10 digits
+    const phoneRegex = /^(\+91[\s]?)?[6-9]\d{9}$/;
+    return phoneRegex.test(phone.replace(/[\s-]/g, ''));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      // Validate required time fields
-      if (!formData.trainArrivalTime) {
-        showError('Train arrival time is required!');
+      // Validate contact numbers
+      if (formData.locoPilotPhone && !isValidPhone(formData.locoPilotPhone)) {
+        showError('Loco Pilot contact number must be a valid 10-digit Indian mobile number (optionally with +91 prefix)!');
         setIsSubmitting(false);
         return;
       }
       
-      if (!formData.signOnTime) {
-        showError('Sign-on time is required!');
+      if (formData.trainManagerPhone && !isValidPhone(formData.trainManagerPhone)) {
+        showError('Train Manager contact number must be a valid 10-digit Indian mobile number (optionally with +91 prefix)!');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Validate required time fields
+      if (!formData.trainArrivalDateTime) {
+        showError('Train arrival date-time is required!');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      if (!formData.signOnDateTime) {
+        showError('Sign-on date-time is required!');
         setIsSubmitting(false);
         return;
       }
       
       // Validate sign-on time is after train arrival
-      const trainArrival = dayjs(`${formData.trainArrivalDate} ${formData.trainArrivalTime}`, 'YYYY-MM-DD HH:mm');
-      const signOn = dayjs(`${formData.signOnDate} ${formData.signOnTime}`, 'YYYY-MM-DD HH:mm');
+      const trainArrival = dayjs(formData.trainArrivalDateTime);
+      const signOn = dayjs(formData.signOnDateTime);
       
       if (!trainArrival.isValid() || !signOn.isValid()) {
         showError('Invalid date or time format!');
@@ -88,31 +99,31 @@ const CreateShiftPage = () => {
       }
       
       if (signOn.isBefore(trainArrival)) {
-        showError('Sign-on time cannot be before train arrival time!');
+        showError('Sign-on date-time cannot be before train arrival date-time!');
         setIsSubmitting(false);
         return;
       }
       
       // Validate departure time if provided
-      if (formData.departureTime && formData.departureDate) {
-        const departure = dayjs(`${formData.departureDate} ${formData.departureTime}`, 'YYYY-MM-DD HH:mm');
+      if (formData.departureDateTime) {
+        const departure = dayjs(formData.departureDateTime);
         if (!departure.isValid()) {
-          showError('Invalid departure date or time format!');
+          showError('Invalid departure date-time format!');
           setIsSubmitting(false);
           return;
         }
         if (departure.isBefore(signOn)) {
-          showError('Departure time cannot be before sign-on time!');
+          showError('Departure date-time cannot be before sign-on date-time!');
           setIsSubmitting(false);
           return;
         }
       }
       
       // Validate timeOfTO if provided
-      if (formData.timeOfTO && formData.timeOfTODate) {
-        const timeOfTO = dayjs(`${formData.timeOfTODate} ${formData.timeOfTO}`, 'YYYY-MM-DD HH:mm');
+      if (formData.timeOfTO) {
+        const timeOfTO = dayjs(formData.timeOfTO);
         if (!timeOfTO.isValid()) {
-          showError('Invalid Time of TO date or time format!');
+          showError('Invalid Time of TO date-time format!');
           setIsSubmitting(false);
           return;
         }
@@ -123,25 +134,22 @@ const CreateShiftPage = () => {
         trainNumber: formData.trainNumber,
         trainName: formData.trainName || undefined, // Optional field
         locomotiveNo: formData.locomotiveNo,
-        dutyType: formData.dutyType,
         signOnStation: formData.signOnStation,
         section: formData.section,
         
-        // Combined date-time fields (ISO 8601) with separate dates
-        trainArrivalDateTime: formData.trainArrivalTime 
-          ? dayjs(`${formData.trainArrivalDate} ${formData.trainArrivalTime}`, 'YYYY-MM-DD HH:mm').toISOString()
+        // ISO 8601 datetime fields
+        trainArrivalDateTime: formData.trainArrivalDateTime
+          ? dayjs(formData.trainArrivalDateTime).toISOString()
           : undefined,
-        signOnDateTime: formData.signOnTime
-          ? dayjs(`${formData.signOnDate} ${formData.signOnTime}`, 'YYYY-MM-DD HH:mm').toISOString()
+        signOnDateTime: formData.signOnDateTime
+          ? dayjs(formData.signOnDateTime).toISOString()
           : undefined,
-        timeOfTO: (formData.timeOfTO && formData.timeOfTODate) 
-          ? dayjs(`${formData.timeOfTODate} ${formData.timeOfTO}`, 'YYYY-MM-DD HH:mm').toISOString()
+        timeOfTO: formData.timeOfTO 
+          ? dayjs(formData.timeOfTO).toISOString()
           : undefined,
-        departureDateTime: (formData.departureTime && formData.departureDate) 
-          ? dayjs(`${formData.departureDate} ${formData.departureTime}`, 'YYYY-MM-DD HH:mm').toISOString()
+        departureDateTime: formData.departureDateTime 
+          ? dayjs(formData.departureDateTime).toISOString()
           : undefined,
-        
-        lobbySignOn: formData.lobbySignOn,
         
         locoPilot: {
           name: formData.locoPilotName,
@@ -184,18 +192,12 @@ const CreateShiftPage = () => {
         trainNumber: '',
         trainName: '',
         locomotiveNo: '',
-        dutyType: 'SP',
         signOnStation: '',
         section: '',
-        trainArrivalDate: dayjs().format('YYYY-MM-DD'),
-        trainArrivalTime: '',
-        signOnDate: dayjs().format('YYYY-MM-DD'),
-        signOnTime: '',
-        timeOfTODate: dayjs().format('YYYY-MM-DD'),
+        trainArrivalDateTime: '',
+        signOnDateTime: '',
         timeOfTO: '',
-        departureDate: dayjs().format('YYYY-MM-DD'),
-        departureTime: '',
-        lobbySignOn: false,
+        departureDateTime: '',
         locoPilotName: '',
         locoPilotId: '',
         locoPilotPhone: '',
@@ -261,23 +263,6 @@ const CreateShiftPage = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Duty Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="dutyType"
-                  value={formData.dutyType}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
-                  required
-                >
-                  <option value="SP">SP</option>
-                  <option value="WR">WR</option>
-                  <option value="LR">LR</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Sign On Station <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -308,12 +293,12 @@ const CreateShiftPage = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Train Arrival Date <span className="text-red-500">*</span>
+                  Train Arrival Date & Time <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="date"
-                  name="trainArrivalDate"
-                  value={formData.trainArrivalDate}
+                  type="datetime-local"
+                  name="trainArrivalDateTime"
+                  value={formData.trainArrivalDateTime}
                   onChange={handleChange}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
                   required
@@ -322,56 +307,15 @@ const CreateShiftPage = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Train Arrival Time <span className="text-red-500">*</span>
+                  Sign On Date & Time <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="time"
-                  name="trainArrivalTime"
-                  value={formData.trainArrivalTime}
+                  type="datetime-local"
+                  name="signOnDateTime"
+                  value={formData.signOnDateTime}
                   onChange={handleChange}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
                   required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sign On Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  name="signOnDate"
-                  value={formData.signOnDate}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sign On Time <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="time"
-                  name="signOnTime"
-                  value={formData.signOnTime}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Time of TO Date
-                </label>
-                <input
-                  type="date"
-                  name="timeOfTODate"
-                  value={formData.timeOfTODate}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
                 />
               </div>
 
@@ -380,7 +324,7 @@ const CreateShiftPage = () => {
                   Time of TO (Turn Out)
                 </label>
                 <input
-                  type="time"
+                  type="datetime-local"
                   name="timeOfTO"
                   value={formData.timeOfTO}
                   onChange={handleChange}
@@ -390,44 +334,15 @@ const CreateShiftPage = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Departure Date
+                  Departure Date & Time
                 </label>
                 <input
-                  type="date"
-                  name="departureDate"
-                  value={formData.departureDate}
+                  type="datetime-local"
+                  name="departureDateTime"
+                  value={formData.departureDateTime}
                   onChange={handleChange}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Departure Time
-                </label>
-                <input
-                  type="time"
-                  name="departureTime"
-                  value={formData.departureTime}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Lobby Sign On
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="lobbySignOn"
-                    checked={formData.lobbySignOn}
-                    onChange={(e) => setFormData({ ...formData, lobbySignOn: e.target.checked })}
-                    className="h-4 w-4 text-[#003d82] focus:ring-[#003d82] border-gray-300 rounded"
-                  />
-                  <span className="text-sm text-gray-700">Lobby Sign On</span>
-                </label>
               </div>
 
               <div className="md:col-span-2">
@@ -495,6 +410,8 @@ const CreateShiftPage = () => {
                   onChange={handleChange}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
                   placeholder="+91 98765 43210"
+                  pattern="(\+91[\s]?)?[6-9]\d{9}"
+                  title="Enter a valid 10-digit Indian mobile number (e.g., 9876543210 or +91 9876543210)"
                 />
               </div>
             </div>
@@ -548,6 +465,8 @@ const CreateShiftPage = () => {
                   onChange={handleChange}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003d82] focus:border-transparent"
                   placeholder="+91 98765 43211"
+                  pattern="(\+91[\s]?)?[6-9]\d{9}"
+                  title="Enter a valid 10-digit Indian mobile number (e.g., 9876543211 or +91 9876543211)"
                 />
               </div>
             </div>

@@ -8,6 +8,7 @@ import ActiveShiftsPage from './pages/dashboard/ActiveShiftsPage';
 import CompletedShiftsPage from './pages/dashboard/CompletedShiftsPage';
 import ShiftDetailsPage from './pages/dashboard/ShiftDetailsPage';
 import EditShiftPage from './pages/dashboard/EditShiftPage';
+import AlertsPage from './pages/dashboard/AlertsPage';
 import UserManagementPage from './pages/dashboard/UserManagementPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -58,6 +59,16 @@ function App() {
           element={
             <ProtectedRoute>
               <ActiveShiftsPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Alerts Page - All authenticated users can view */}
+        <Route 
+          path="/dashboard/alerts" 
+          element={
+            <ProtectedRoute>
+              <AlertsPage />
             </ProtectedRoute>
           } 
         />

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { FaTrain, FaSave, FaTimes, FaArrowLeft } from 'react-icons/fa';
+import { FaTrain, FaSave, FaTimes, FaArrowLeft, FaTrash } from 'react-icons/fa';
 import dayjs from 'dayjs';
 import shiftService from '../../services/shiftService';
 import useAuthStore from '../../stores/useAuthStore';
@@ -13,6 +13,8 @@ const EditShiftPage = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formData, setFormData] = useState({
     trainNumber: '',
     trainName: '',
@@ -85,6 +87,24 @@ const EditShiftPage = () => {
       ...formData,
       [name]: type === 'checkbox' ? checked : value,
     });
+  };
+
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true);
+      const response = await shiftService.deleteShift(id);
+      
+      if (response.success) {
+        success('Shift deleted successfully');
+        navigate('/dashboard/active-shifts');
+      }
+    } catch (err) {
+      console.error('Delete Error:', err);
+      showError(err.response?.data?.message || 'Failed to delete shift');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -389,14 +409,26 @@ const EditShiftPage = () => {
             <button
               type="button"
               onClick={() => navigate(`/dashboard/shifts/${id}`)}
-              disabled={isSaving}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSaving || isDeleting}
+              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FaTimes /> Cancel
             </button>
+            
+            {(user?.role === 'SUPERADMIN') && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isSaving || isDeleting}
+                className="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaTrash /> Delete Shift
+              </button>
+            )}
+            
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || isDeleting}
               className="flex-1 px-6 py-3 bg-[#003d82] text-white rounded-md hover:bg-[#002b5c] transition-colors font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? (
@@ -421,6 +453,50 @@ const EditShiftPage = () => {
           </div>
         </form>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-red-600 mb-4 flex items-center gap-2">
+              <FaTrash /> Confirm Delete
+            </h3>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete this shift? This action cannot be undone.
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-6">
+              <p className="text-sm text-yellow-800">
+                <strong>Warning:</strong> Deleting this shift will also remove all associated logs and notifications.
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <FaTrash /> Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

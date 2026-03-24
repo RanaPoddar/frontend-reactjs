@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorMessage from '../../components/ErrorMessage';
+import useDataCache from '../../hooks/useDataCache';
 import { 
   FaUsers, 
   FaTrain, 
@@ -30,47 +31,43 @@ const HomeDashboard = () => {
   // State
   const [dashboardStats, setDashboardStats] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // Fetch dashboard data
+  // Fetch dashboard data with intelligent caching
+  const { 
+    data: cachedStats, 
+    isLoading: statsLoading, 
+    error: statsError 
+  } = useDataCache(
+    () => dashboardService.getStats(),
+    [],
+    10 * 60 * 1000 // Cache for 10 minutes
+  );
+
+  const { 
+    data: cachedActivities, 
+    isLoading: activitiesLoading, 
+    error: activitiesError 
+  } = useDataCache(
+    () => dashboardService.getRecentActivities({ limit: 10 }),
+    [],
+    5 * 60 * 1000 // Cache for 5 minutes
+  );
+
+  const isLoading = statsLoading && !dashboardStats;
+  const error = statsError || activitiesError;
+
+  // Update state when cached data arrives
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+    if (cachedStats?.success) {
+      setDashboardStats(cachedStats.data);
+    }
+  }, [cachedStats]);
 
-        // Fetch stats and recent activities in parallel
-        const [statsResponse, activitiesResponse] = await Promise.all([
-          dashboardService.getStats(),
-          dashboardService.getRecentActivities({ limit: 10 })
-        ]);
-
-        console.log('📊 Dashboard Stats:', statsResponse);
-        console.log('📋 Recent Activities:', activitiesResponse);
-
-        if (statsResponse.success) {
-          setDashboardStats(statsResponse.data);
-        }
-
-        if (activitiesResponse.success) {
-          setRecentActivities(activitiesResponse.data.activities || []);
-        }
-      } catch (err) {
-        console.error('❌ Failed to fetch dashboard data:', err);
-        setError(err.response?.data?.message || 'Failed to load dashboard data');
-        showError('Failed to load dashboard data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-
-    // Refresh every 5 minutes
-    const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [showError]);
+  useEffect(() => {
+    if (cachedActivities?.success) {
+      setRecentActivities(cachedActivities.data.activities || []);
+    }
+  }, [cachedActivities]);
 
   // Activity type display helpers
   const getActivityIcon = (type) => {
@@ -137,69 +134,6 @@ const HomeDashboard = () => {
           <p className="text-gray-600 mt-1">
             Overview of shift management system - Last updated {dayjs().format('HH:mm')}
           </p>
-        </div>
-
-        {/* Primary Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Active Shifts</p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">{overview.activeShifts || 0}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {today.activeShifts || 0} started today
-                </p>
-              </div>
-              <div className="bg-blue-500 p-4 rounded-full">
-                <FaClock className="text-white text-2xl" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Completed Today</p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">{today.shiftsCompleted || 0}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {overview.completedShifts || 0} total completed
-                </p>
-              </div>
-              <div className="bg-green-500 p-4 rounded-full">
-                <FaCheckCircle className="text-white text-2xl" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Total Shifts</p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">{overview.totalShifts || 0}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {today.shiftsCreated || 0} created today
-                </p>
-              </div>
-              <div className="bg-purple-500 p-4 rounded-full">
-                <FaTrain className="text-white text-2xl" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Active Alerts</p>
-                <p className="text-3xl font-bold text-gray-800 mt-2">{alerts.totalAlerts || 0}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {overview.reliefPlannedShifts || 0} relief planned
-                </p>
-              </div>
-              <div className="bg-red-500 p-4 rounded-full">
-                <FaExclamationTriangle className="text-white text-2xl" />
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Alert Breakdown */}

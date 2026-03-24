@@ -1,10 +1,36 @@
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaTrain, FaSignOutAlt, FaUser, FaShieldAlt, FaCrown, FaEye } from 'react-icons/fa';
+import { FaTrain, FaSignOutAlt, FaUser, FaShieldAlt, FaCrown, FaEye, FaBell } from 'react-icons/fa';
 import useAuthStore from '../stores/useAuthStore';
+import dashboardService from '../services/dashboardService';
 
-const Layout = ({ children }) => {
+const Layout = ({ children, fullWidth = false }) => {
   const navigate = useNavigate();
   const { user, role, logout, canEdit, isViewOnly } = useAuthStore();
+  const [alertCount, setAlertCount] = useState(0);
+  
+  // Fetch alert count
+  useEffect(() => {
+    const fetchAlertCount = async () => {
+      try {
+        const response = await dashboardService.getAlertsSummary();
+        if (response.success && response.data?.alerts) {
+          // Count alerts that need response
+          const pendingAlerts = response.data.alerts.filter(
+            alert => alert.status === 'SENT' && !alert.responseAction
+          );
+          setAlertCount(pendingAlerts.length);
+        }
+      } catch (error) {
+        console.error('Failed to fetch alert count:', error);
+      }
+    };
+
+    fetchAlertCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchAlertCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
   
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -105,6 +131,22 @@ const Layout = ({ children }) => {
             </li>
             <li>
               <Link
+                to="/dashboard/alerts"
+                className="block px-6 py-3 text-[#003d82] hover:bg-gray-100 font-medium transition-colors relative"
+              >
+                <span className="flex items-center gap-2">
+                  <FaBell />
+                  Alerts
+                  {alertCount > 0 && (
+                    <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                      {alertCount}
+                    </span>
+                  )}
+                </span>
+              </Link>
+            </li>
+            <li>
+              <Link
                 to="/dashboard/completed-shifts"
                 className="block px-6 py-3 text-[#003d82] hover:bg-gray-100 font-medium transition-colors"
               >
@@ -116,7 +158,7 @@ const Layout = ({ children }) => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 gov-container py-6">
+      <main className={`flex-1 py-6 ${fullWidth ? 'px-6 max-w-full' : 'gov-container'}`}>
         {children}
       </main>
 
